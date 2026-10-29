@@ -1,52 +1,67 @@
+
 export const helpFetch = () => {
-  const URL = "http://localhost:3004/"
+  const URL = "/crudAPI"
 
   const customFetch = (endpoint, options = {}) => {
-    options.method = options.method || "GET"
-    options.headers = {
-      "content-type": "application/json"
-    }
-
-    if (options.body) {
-      options.body = JSON.stringify(options.body)
-    }
-
-    console.log(options);
-
-    return fetch(`${URL}${endpoint}`, options).then( response => {
-      return response.ok
-      ? response.json()
-      : Promise.reject({
-        error: true,
-        status: response.status,
-        statusText: response.statusText
-      })
-    }).catch( error => {
-      return {
-        error: true,
-        statusText: "Error: No se ha logrado la petición."
+    const config = {
+      ...options,
+      method: options.method || "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
       }
-    } )
-  }
-
-  const get = (endpoint) => customFetch(endpoint)
-
-  const post = (endpoint, options) => {
-    options.method = "POST"
-    return customFetch(endpoint, options)
-  }
-
-  const put = (endpoint, options, id) => {
-    options.method = "PUT"
-    return customFetch(`${endpoint}/${id}`, options)
-  }
-
-  const del = (endpoint, id) => {
-    const options = {
-      method: "DELETE"
     }
-    return customFetch(`${endpoint}/${id}`, options)
+
+    if (options.body && typeof options.body !== "string") {
+      config.body = JSON.stringify(options.body)
+    }
+
+    const cleanURL = `${URL.replace(/\/+$/, "")}/${endpoint.replace(/^\/+/, "")}`
+
+    return fetch(cleanURL, config)
+      .then(async response => {
+        const data = response.status === 204
+          ? null
+          : await response.json()
+
+        if (!response.ok) {
+          return {
+            error: true,
+            status: response.status,
+            statusText: data?.message || response.statusText
+          }
+        }
+
+        return data
+      })
+      .catch(error => {
+        console.error("Error en la petición:", error)
+
+        return {
+          error: true,
+          statusText: error.message || "Error: No se ha logrado la petición."
+        }
+      })
   }
+
+  const get = endpoint => customFetch(endpoint)
+
+  const post = (endpoint, options = {}) =>
+    customFetch(endpoint, {
+      ...options,
+      method: "POST"
+    })
+
+  const put = (endpoint, options = {}, id) =>
+    customFetch(`${endpoint}/${id}`, {
+      ...options,
+      method: "PUT"
+    })
+
+  const del = (endpoint, id) =>
+    customFetch(`${endpoint}/${id}`, {
+      method: "DELETE"
+    })
 
   return { get, post, put, del }
 }
